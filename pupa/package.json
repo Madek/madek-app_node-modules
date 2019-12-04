@@ -1,0 +1,103 @@
+{
+  "_from": "pupa@^1.0.0",
+  "_id": "pupa@1.0.0",
+  "_inBundle": false,
+  "_integrity": "sha1-mpVopa9+ZXuEYqbp1TKHQ1YM7/Y=",
+  "_location": "/pupa",
+  "_nodeVersion": "4.6.2",
+  "_npmOperationalInternal": {
+    "host": "packages-18-east.internal.npmjs.com",
+    "tmp": "tmp/pupa-1.0.0.tgz_1484024976343_0.21447648899629712"
+  },
+  "_npmUser": {
+    "name": "sindresorhus",
+    "email": "sindresorhus@gmail.com"
+  },
+  "_npmVersion": "2.15.11",
+  "_phantomChildren": {},
+  "_requested": {
+    "type": "range",
+    "registry": true,
+    "raw": "pupa@^1.0.0",
+    "name": "pupa",
+    "escapedName": "pupa",
+    "rawSpec": "^1.0.0",
+    "saveSpec": null,
+    "fetchSpec": "^1.0.0"
+  },
+  "_requiredBy": [
+    "/electron-dl"
+  ],
+  "_resolved": "https://registry.npmjs.org/pupa/-/pupa-1.0.0.tgz",
+  "_shasum": "9a9568a5af7e657b8462a6e9d5328743560ceff6",
+  "_spec": "pupa@^1.0.0",
+  "_where": "/Users/thomas/Programming/MADEK/exporter/node_modules/electron-dl",
+  "author": {
+    "name": "Sindre Sorhus",
+    "email": "sindresorhus@gmail.com",
+    "url": "sindresorhus.com"
+  },
+  "bugs": {
+    "url": "https://github.com/sindresorhus/pupa/issues"
+  },
+  "bundleDependencies": false,
+  "deprecated": false,
+  "description": "Simple micro templating",
+  "devDependencies": {
+    "ava": "*",
+    "xo": "*"
+  },
+  "directories": {},
+  "dist": {
+    "shasum": "9a9568a5af7e657b8462a6e9d5328743560ceff6",
+    "tarball": "https://registry.npmjs.org/pupa/-/pupa-1.0.0.tgz"
+  },
+  "engines": {
+    "node": ">=4"
+  },
+  "files": [
+    "index.js"
+  ],
+  "gitHead": "05a5d7e3cbe99cb303b6d0fda6984c45e59ec45d",
+  "homepage": "https://github.com/sindresorhus/pupa#readme",
+  "keywords": [
+    "string",
+    "formatting",
+    "template",
+    "object",
+    "format",
+    "interpolate",
+    "interpolation",
+    "templating",
+    "str",
+    "obj",
+    "tpl",
+    "expand",
+    "simple",
+    "replace",
+    "placeholders",
+    "values",
+    "fmt",
+    "transform",
+    "micro"
+  ],
+  "license": "MIT",
+  "maintainers": [
+    {
+      "name": "sindresorhus",
+      "email": "sindresorhus@gmail.com"
+    }
+  ],
+  "name": "pupa",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/sindresorhus/pupa.git"
+  },
+  "scripts": {
+    "test": "xo && ava"
+  },
+  "version": "1.0.0",
+  "xo": {
+    "esnext": true
+  }
+}
