@@ -1,19 +1,17 @@
 # electron-packager API
 
-Short Promise example:
+Short example:
 
 ```javascript
 const packager = require('electron-packager')
-packager(options)
-  .then(appPaths => { /* … */ })
+
+async function bundleElectronApp(options) {
+  const appPaths = await packager(options)
+  console.log(`Electron app bundles created:\n${appPaths.join("\n")}`)
+}
 ```
 
-Short [(deprecated) callback syntax](#callback) example:
-
-```javascript
-const packager = require('electron-packager')
-packager(options, function done_callback (err, appPaths) { /* … */ })
-```
+`appPaths` is described in the [return value](#return-value) section.
 
 ## `options`
 
@@ -43,29 +41,33 @@ An array of functions to be called after your app directory has been copied to a
 
 By default, the functions are called in parallel (via
 [`Promise.all`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise/all)).
-If you need the functions called serially, there is a utility function provided:
+If you need the functions called serially, there is a utility function provided. Please note that
+**callback-style functions are not supported by `serialHooks`.** For example:
 
 ```javascript
 const packager = require('electron-packager')
-const serialHooks = require('electron-packager/hooks').serialHooks
+const { serialHooks } = require('electron-packager/src/hooks')
 
 packager({
   // ...
   afterCopy: [serialHooks([
-    (buildPath, electronVersion, platform, arch, callback) => {
-      setTimeout(() => {
-        console.log('first function')
-        callback()
-      }, 1000)
+    (buildPath, electronVersion, platform, arch) => {
+      return new Promise((resolve, reject) => {
+        setTimeout(() => {
+          console.log('first function')
+          resolve()
+        }, 1000)
+      })
     },
-    (buildPath, electronVersion, platform, arch, callback) => {
+    (buildPath, electronVersion, platform, arch) => {
       console.log('second function')
-      callback()
     }
   ])],
   // ...
 })
 ```
+
+**Note:** `afterCopy` will not be called if [`prebuiltAsar`](#prebuiltasar) is set.
 
 ##### `afterExtract`
 
@@ -81,24 +83,26 @@ An array of functions to be called after Electron has been extracted to a tempor
 
 By default, the functions are called in parallel (via
 [`Promise.all`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise/all)).
-If you need the functions called serially, there is a utility function provided:
+If you need the functions called serially, there is a utility function provided. Please note that
+**callback-style functions are not supported by `serialHooks`.** For example:
 
 ```javascript
 const packager = require('electron-packager')
-const serialHooks = require('electron-packager/hooks').serialHooks
+const { serialHooks } = require('electron-packager/src/hooks')
 
 packager({
   // ...
   afterExtract: [serialHooks([
-    (buildPath, electronVersion, platform, arch, callback) => {
-      setTimeout(() => {
-        console.log('first function')
-        callback()
-      }, 1000)
+    (buildPath, electronVersion, platform, arch) => {
+      return new Promise((resolve, reject) => {
+        setTimeout(() => {
+          console.log('first function')
+          resolve()
+        }, 1000)
+      })
     },
-    (buildPath, electronVersion, platform, arch, callback) => {
+    (buildPath, electronVersion, platform, arch) => {
       console.log('second function')
-      callback()
     }
   ])],
   // ...
@@ -118,28 +122,30 @@ in the temporary directory.  Each function is called with five parameters:
 - `arch` (*String*): The target architecture you are packaging for
 - `callback` (*Function*): Must be called once you have completed your actions
 
-**NOTE:** None of these functions will be called if the `prune` option is `false`.
+**Note:** None of these functions will be called if the `prune` option is `false` or `prebuiltAsar` is set.
 
 By default, the functions are called in parallel (via
 [`Promise.all`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise/all)).
-If you need the functions called serially, there is a utility function provided:
+If you need the functions called serially, there is a utility function provided. Please note that
+**callback-style functions are not supported by `serialHooks`.** For example:
 
 ```javascript
 const packager = require('electron-packager')
-const serialHooks = require('electron-packager/hooks').serialHooks
+const { serialHooks } = require('electron-packager/src/hooks')
 
 packager({
   // ...
   afterPrune: [serialHooks([
-    (buildPath, electronVersion, platform, arch, callback) => {
-      setTimeout(() => {
-        console.log('first function')
-        callback()
-      }, 1000)
+    (buildPath, electronVersion, platform, arch) => {
+      return new Promise((resolve, reject) => {
+        setTimeout(() => {
+          console.log('first function')
+          resolve()
+        }, 1000)
+      })
     },
-    (buildPath, electronVersion, platform, arch, callback) => {
+    (buildPath, electronVersion, platform, arch) => {
       console.log('second function')
-      callback()
     }
   ])],
   // ...
@@ -156,33 +162,33 @@ When `true`, sets both [`arch`](#arch) and [`platform`](#platform) to `all`.
 
 *String*
 
-The human-readable copyright line for the app. Maps to the `LegalCopyright` metadata property on Windows, and `NSHumanReadableCopyright` on OS X.
+The human-readable copyright line for the app. Maps to the `LegalCopyright` metadata property on Windows, and `NSHumanReadableCopyright` on macOS.
 
 ##### `appVersion`
 
 *String*
 
-The release version of the application. By default the `version` property in the `package.json` is used but it can be overridden with this argument. If neither are provided, the version of Electron will be used. Maps to the `ProductVersion` metadata property on Windows, and `CFBundleShortVersionString` on OS X.
+The release version of the application. By default the `version` property in the `package.json` is used but it can be overridden with this argument. If neither are provided, the version of Electron will be used. Maps to the `ProductVersion` metadata property on Windows, and `CFBundleShortVersionString` on macOS.
 
 #### `arch`
 
 *String* (default: the arch of the host computer running Node)
 
 Allowed values: `ia32`, `x64`, `armv7l`, `arm64` _(Electron 1.8.0 and above)_, `mips64el`
-_(Electron 1.8.2-beta.5 and above)_, `all`
+_(Electron 1.8.2-beta.5 to 1.8.8)_, `all`
 
 The target system architecture(s) to build for.
 Not required if the [`all`](#all) option is set.
 If `arch` is set to `all`, all supported architectures for the target platforms specified by [`platform`](#platform) will be built.
 Arbitrary combinations of individual architectures are also supported via a comma-delimited string or array of strings.
 The non-`all` values correspond to the architecture names used by [Electron releases]. This value
-is not restricted to the official set if [`download.mirror`](#download) is set.
+is not restricted to the official set if [`download.mirrorOptions`](#download) is set.
 
 ##### `asar`
 
 *Boolean* or *Object* (default: `false`)
 
-Whether to package the application's source code into an archive, using [Electron's archive format](https://github.com/electron/asar). Reasons why you may want to enable this feature are described in [an application packaging tutorial in Electron's documentation](http://electron.atom.io/docs/v0.36.0/tutorial/application-packaging/). When the value is `true`, pass default configuration to the `asar` module. The configuration values listed below can be customized when the value is an `Object`. Supported parameters include, but are not limited to:
+Whether to package the application's source code into an archive, using [Electron's archive format](https://github.com/electron/asar). Reasons why you may want to enable this feature are described in [an application packaging tutorial in Electron's documentation](https://electronjs.org/docs/tutorial/application-packaging/). When the value is `true`, pass default configuration to the `asar` module. The configuration values listed below can be customized when the value is an `Object`. Supported parameters include, but are not limited to:
 - `ordering` (*String*): A path to an ordering file for packing files. An explanation can be found on the [Atom issue tracker](https://github.com/atom/atom/issues/10163).
 - `unpack` (*String*): A [glob expression](https://github.com/isaacs/minimatch#features), when specified, unpacks the file with matching names to the `app.asar.unpacked` directory.
 - `unpackDir` (*String*): Unpacks the dir to the `app.asar.unpacked` directory whose names exactly or pattern match this string. The `asar.unpackDir` is relative to `dir`.
@@ -194,11 +200,13 @@ Whether to package the application's source code into an archive, using [Electro
   - `asar.unpackDir = '**/{sub_dir1/sub_sub_dir,sub_dir2}/**'` will unpack the subdirectories of the directories `/<dir>/sub_dir1/sub_sub_dir` and `/<dir>/sub_dir2`.
   - `asar.unpackDir = '**/{sub_dir1/sub_sub_dir,sub_dir2}/**/*'` will unpack the directories `/<dir>/sub_dir1/sub_sub_dir` and `/<dir>/sub_dir2` and their subdirectories.
 
+**Note:** `asar` will have no effect if [`prebuiltAsar`](#prebuiltasar) is set.
+
 ##### `buildVersion`
 
 *String*
 
-The build version of the application. Defaults to the value of [`appVersion`](#appversion). Maps to the `FileVersion` metadata property on Windows, and `CFBundleVersion` on OS X.
+The build version of the application. Defaults to the value of [`appVersion`](#appversion). Maps to the `FileVersion` metadata property on Windows, and `CFBundleVersion` on macOS.
 
 ##### `derefSymlinks`
 
@@ -206,18 +214,19 @@ The build version of the application. Defaults to the value of [`appVersion`](#a
 
 Whether symlinks should be dereferenced during the copying of the application source.
 
+**Note:** `derefSymlinks` will have no effect if [`prebuiltAsar`](#prebuiltasar) is set.
+
 ##### `download`
 
 *Object*
 
-If present, passes custom options to [`electron-download`](https://www.npmjs.com/package/electron-download)
-(see the link for more detailed option descriptions and the defaults). Supported parameters include,
-but are not limited to:
-- `cache` (*String*): The directory where prebuilt, pre-packaged Electron downloads are cached.
-- `mirror` (*String*): The URL to override the default Electron download location.
-- `quiet` (*Boolean* - default: `false`): Whether to show a progress bar when downloading Electron.
-- `strictSSL` (*Boolean* - default: `true`): Whether SSL certificates are required to be valid when
-  downloading Electron.
+If present, passes custom options to [`@electron/get`](https://npm.im/@electron/get)
+(see the link for more detailed option descriptions, proxy support, and the defaults). Supported
+parameters include, but are not limited to:
+- `cacheRoot` (*String*): The directory where prebuilt, pre-packaged Electron downloads are cached.
+- `mirrorOptions` (*Object*): Options to override the default Electron download location.
+- `rejectUnauthorized` (*Boolean* - default: `true`): Whether SSL certificates are required to be
+  valid when downloading Electron.
 
 
 ##### `electronVersion`
@@ -234,15 +243,15 @@ valid versions. If omitted, it will use the version of the nearest local install
 
 *Boolean* (default: `false`)
 
-Forces support for Mojave (macOS 10.14) dark mode in your packaged app, this sets the
-`NSRequiresAquaSystemAppearance` key to `false` in your app's `Info.plist`.  For more
-information see the [Apple developer documentation](https://developer.apple.com/documentation/appkit/nsappearancecustomization/choosing_a_specific_appearance_for_your_app).
+Forces support for Mojave (macOS 10.14) dark mode in your packaged app. This sets the
+`NSRequiresAquaSystemAppearance` key to `false` in your app's `Info.plist`.  For more information,
+see the [Apple developer documentation](https://developer.apple.com/documentation/appkit/nsappearancecustomization/choosing_a_specific_appearance_for_your_app).
 
 ##### `extraResource`
 
 *String* or *Array* of *String*s
 
-One or more files to be copied directly into the app's `Contents/Resources` directory for OS X
+One or more files to be copied directly into the app's `Contents/Resources` directory for macOS
 target platforms, and the `resources` directory for other target platforms.
 
 ##### `executableName`
@@ -261,14 +270,14 @@ The local path to the icon file, if the target platform supports setting embeddi
 
 Currently you must look for conversion tools in order to supply an icon in the format required by the platform:
 
-- OS X: `.icns`
-- Windows: `.ico` ([See the readme](https://github.com/electron-userland/electron-packager#building-windows-apps-from-non-windows-platforms) for details on non-Windows platforms)
-- Linux: this option is not required, as the dock/window list icon is set via
-  [the `icon` option in the `BrowserWindow` constructor](http://electron.atom.io/docs/api/browser-window/#new-browserwindowoptions).
-  *Please note that you need to use a PNG, and not the OS X or Windows icon formats, in order for it
+- macOS: `.icns`
+- Windows: `.ico` ([See the readme](https://github.com/electron/electron-packager#building-windows-apps-from-non-windows-platforms) for details on non-Windows platforms)
+- Linux: this option is not supported, as the dock/window list icon is set via
+  [the `icon` option in the `BrowserWindow` constructor](https://electronjs.org/docs/api/browser-window/#new-browserwindowoptions).
+  *Please note that you need to use a PNG, and not the macOS or Windows icon formats, in order for it
   to show up in the dock/window list.* Setting the icon in the file manager is not currently supported.
 
-If the file extension is omitted, it is auto-completed to the correct extension based on the platform, including when [`--platform=all`](#platform) is in effect.
+If the file extension is omitted, it is auto-completed to the correct extension based on the platform, including when [`platform: 'all'`](#platform) is in effect.
 
 ##### `ignore`
 
@@ -287,18 +296,28 @@ described after the list*):
 * `node_modules/electron`
 * `node_modules/electron-prebuilt`
 * `node_modules/electron-prebuilt-compile`
-* `node_modules/electron-packager`
 * `.git`
 * files and folders ending in `.o` and `.obj`
 
 **Please note that [glob patterns](https://en.wikipedia.org/wiki/Glob_%28programming%29) will not work.**
 
-**Note**: If you're trying to ignore Node modules specified in `devDependencies`, you may want to
-use [`prune`](#prune) instead.
+**Note**: Node modules specified in `devDependencies` are ignored by default, via the
+[`prune`](#prune) option.
 
 Alternatively, this can be a predicate function that, given an absolute file path, returns `true` if
 the file should be ignored, or `false` if the file should be kept. *This does not use any of the
-default ignored directories listed above.*
+default ignored files/directories listed above.*
+
+**Note:** `ignore` will have no effect if [`prebuiltAsar`](#prebuiltasar) is set.
+
+##### `junk`
+
+*Boolean* (default: `true`)
+
+Ignores [system junk files](https://github.com/sindresorhus/junk) when copying the Electron app,
+regardless of the [`ignore`](#ignore) option.
+
+**Note:** `junk` will have no effect if [`prebuiltAsar`](#prebuiltasar) is set.
 
 ##### `name`
 
@@ -332,7 +351,24 @@ Not required if the [`all`](#all) option is set.
 If `platform` is set to `all`, all [supported target platforms](#supported-platforms) for the target architectures specified by [`arch`](#arch) will be built.
 Arbitrary combinations of individual platforms are also supported via a comma-delimited string or array of strings.
 The non-`all` values correspond to the platform names used by [Electron releases]. This value
-is not restricted to the official set if [`download.mirror`](#download) is set.
+is not restricted to the official set if [`download.mirrorOptions`](#download) is set.
+
+##### `prebuiltAsar`
+
+*String*
+
+The path to a prebuilt ASAR file.
+
+**Note:** Setting this option prevents the following options from being used, as the functionality
+gets skipped over:
+
+* [`asar`](#asar)
+* [`afterCopy`](#aftercopy)
+* [`afterPrune`](#afterprune)
+* [`derefSymlinks`](#derefsymlinks)
+* [`ignore`](#ignore)
+* [`junk`](#junk)
+* [`prune`](#prune)
 
 ##### `prune`
 
@@ -340,6 +376,8 @@ is not restricted to the official set if [`download.mirror`](#download) is set.
 
 Walks the `node_modules` dependency tree to remove all of the packages specified in the
 `devDependencies` section of `package.json` from the outputted Electron app.
+
+**Note:** `prune` will have no effect if [`prebuiltAsar`](#prebuiltasar) is set.
 
 ##### `quiet`
 
@@ -354,7 +392,7 @@ application. This does *not* disable errors.
 
 The base directory to use as a temp directory. Set to `false` to disable use of a temporary directory.
 
-#### OS X/Mac App Store targets only
+#### macOS/Mac App Store targets only
 
 ##### `appBundleId`
 
@@ -386,11 +424,21 @@ Entries from `extend-info` override entries in the base plist file supplied by `
 
 The bundle identifier to use in the application helper's plist.
 
+##### `osxNotarize`
+
+*Object*
+
+**Requires [`osxSign`](#osxsign) to be set.**
+
+If present, notarizes macOS target apps when the host platform is macOS and XCode is installed.  The configuration values listed below can be customized. See [`electron-notarize`](https://github.com/electron-userland/electron-notarize#method-notarizeopts-promisevoid) for more detailed option descriptions and how to use `appleIdPassword` safely.
+- `appleId` (*String*, **required**): Your Apple ID username / email
+- `appleIdPassword` (*String*, **required**): The password for your Apple ID, can be a keychain reference
+
 ##### `osxSign`
 
 *Object* or *`true`*
 
-If present, signs OS X target apps when the host platform is OS X and XCode is installed. When the value is `true`, pass default configuration to the signing module. The configuration values listed below can be customized when the value is an `Object`. See [electron-osx-sign](https://www.npmjs.com/package/electron-osx-sign#opts) for more detailed option descriptions and the defaults.
+If present, signs macOS target apps when the host platform is macOS and XCode is installed. When the value is `true`, pass default configuration to the signing module. The configuration values listed below can be customized when the value is an `Object`. See [electron-osx-sign](https://www.npmjs.com/package/electron-osx-sign#opts) for more detailed option descriptions and the defaults.
 - `identity` (*String*): The identity used when signing the package via `codesign`.
 - `entitlements` (*String*): The path to the 'parent' entitlements.
 - `entitlements-inherit` (*String*): The path to the 'child' entitlements.
@@ -407,6 +455,30 @@ Each *Object* is required to have the following properties:
 - `schemes` (*Array* of *String*​s): One or more protocol schemes associated with the app. For
   example, specifying `myapp` would cause URLs such as `myapp://path` to be opened with the app.
   Maps to the `CFBundleURLSchemes` metadata property.
+
+##### `usageDescription`
+
+*Object*
+
+Human-readable descriptions of how the Electron app uses certain macOS features. These are displayed
+in the App Store. A non-exhaustive list of available properties:
+
+* `Camera` - required for media access API usage in macOS Catalina
+* `Microphone` - required for media access API usage in macOS Catalina
+
+Valid properties are the [Cocoa keys for MacOS](https://developer.apple.com/library/archive/documentation/General/Reference/InfoPlistKeyReference/Articles/CocoaKeys.html)
+of the pattern `NS(.*)UsageDescription`, where the captured group is the key to use.
+
+Example:
+
+```javascript
+{
+  usageDescription: {
+    Camera: 'Needed for video calls',
+    Microphone: 'Needed for voice calls'
+  }
+}
+```
 
 #### Windows targets only
 
@@ -425,13 +497,7 @@ Object (also known as a "hash") of application metadata to embed into the execut
 
 For more information, see the [`node-rcedit` module](https://github.com/electron/node-rcedit).
 
-## callback
-
-### `err`
-
-*Error* (or *Array*, in the case of an `copy` error)
-
-Contains errors, if any.
+## Return value
 
 ### `appPaths`
 

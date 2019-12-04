@@ -2,16 +2,16 @@
 
 ## Why does the menubar appear when running in development mode, but disappear when packaged?
 
-Based on [a comment from **@MarshallOfSound**](https://github.com/electron-userland/electron-packager/issues/553#issuecomment-270805213):
+Based on [a comment from **@MarshallOfSound**](https://github.com/electron/electron-packager/issues/553#issuecomment-270805213):
 
 When you're running in "development mode" (for example, `electron /path/to/app`), Electron uses the
 `default_app` codepath to run your app, which also provides a default menubar. When the app is
 packaged, Electron runs your app directly. To have a menubar that's consistent between development
-and packaged modes, you'll need to [define it yourself](https://electron.atom.io/docs/api/menu/).
+and packaged modes, you'll need to [define it yourself](https://electronjs.org/docs/api/menu/).
 
 ## Why isn't my `ignore` option working?
 
-As stated in the documentation for [`ignore`](https://github.com/electron-userland/electron-packager/blob/master/docs/api.md#ignore), it uses "[one] or more additional
+As stated in the documentation for [`ignore`](https://github.com/electron/electron-packager/blob/master/docs/api.md#ignore), it uses "[one] or more additional
 [regular expression](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Guide/Regular_Expressions)
 patterns. […] Please note that [glob patterns](https://en.wikipedia.org/wiki/Glob_%28programming%29)
 will not work."
@@ -41,7 +41,7 @@ console.log(require(jsonFilename));
 
 ## How do I set an icon on Linux?
 
-The docs for [`icon`](https://github.com/electron-userland/electron-packager/blob/master/docs/api.md#icon)
+The docs for [`icon`](https://github.com/electron/electron-packager/blob/master/docs/api.md#icon)
 already show how to set an icon on your `BrowserWindow`, but your dock/taskbar may not use that and
-instead use the `Icon` value in your `.desktop` file. The [Linux distributable creators](https://github.com/electron-userland/electron-packager#distributable-creators)
+instead use the `Icon` value in your `.desktop` file. The [Linux distributable creators](https://github.com/electron/electron-packager#distributable-creators)
 can help you set/distribute the appropriate icon in that case.
