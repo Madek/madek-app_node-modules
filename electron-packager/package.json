@@ -1,140 +1,129 @@
 {
-  "name": "electron-packager",
-  "version": "8.6.0",
-  "description": "Package and distribute your Electron app with OS-specific bundles (.app, .exe etc) via JS or CLI",
-  "main": "index.js",
-  "bin": {
-    "electron-packager": "cli.js"
+  "_from": "electron-packager@^12.1.0",
+  "_id": "electron-packager@12.2.0",
+  "_inBundle": false,
+  "_integrity": "sha512-T5W/FIK4VXhYIOWxkehmz6zXt2S/sA9JZ3AL+/jeKCicQY6QVQ0K8B7W801L+GPTwbgTPycHjO+iqEf1BhZ+Iw==",
+  "_location": "/electron-packager",
+  "_phantomChildren": {},
+  "_requested": {
+    "type": "range",
+    "registry": true,
+    "raw": "electron-packager@^12.1.0",
+    "name": "electron-packager",
+    "escapedName": "electron-packager",
+    "rawSpec": "^12.1.0",
+    "saveSpec": null,
+    "fetchSpec": "^12.1.0"
   },
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/electron-userland/electron-packager.git"
-  },
+  "_requiredBy": [
+    "#DEV:/"
+  ],
+  "_resolved": "https://registry.npmjs.org/electron-packager/-/electron-packager-12.2.0.tgz",
+  "_shasum": "e38e0702a12e5f62a00a03aabd0b9ad28aebab4b",
+  "_spec": "electron-packager@^12.1.0",
+  "_where": "/Users/thomas/Programming/MADEK/exporter",
   "author": {
     "name": "max ogden"
   },
-  "license": "BSD-2-Clause",
+  "ava": {
+    "timeout": "60s"
+  },
+  "bin": {
+    "electron-packager": "cli.js"
+  },
   "bugs": {
     "url": "https://github.com/electron-userland/electron-packager/issues"
   },
-  "homepage": "https://github.com/electron-userland/electron-packager",
+  "bundleDependencies": false,
   "dependencies": {
-    "asar": "^0.13.0",
-    "debug": "^2.2.0",
-    "electron-download": "^4.0.0",
+    "asar": "^0.14.0",
+    "debug": "^3.0.0",
+    "electron-download": "^4.1.1",
     "electron-osx-sign": "^0.4.1",
     "extract-zip": "^1.0.3",
-    "fs-extra": "^2.0.0",
+    "fs-extra": "^5.0.0",
+    "galactus": "^0.2.1",
     "get-package-info": "^1.0.0",
-    "minimist": "^1.1.1",
+    "nodeify": "^1.0.1",
+    "parse-author": "^2.0.0",
+    "pify": "^3.0.0",
     "plist": "^2.0.0",
-    "rcedit": "^0.8.0",
+    "rcedit": "^1.0.0",
     "resolve": "^1.1.6",
-    "run-series": "^1.1.1",
     "sanitize-filename": "^1.6.0",
-    "semver": "^5.3.0"
+    "semver": "^5.3.0",
+    "yargs-parser": "^10.0.0"
   },
+  "deprecated": false,
+  "description": "Customize and package your Electron app with OS-specific bundles (.app, .exe, etc.) via JS or CLI",
   "devDependencies": {
+    "ava": "^0.25.0",
     "buffer-equal": "^1.0.0",
-    "coveralls": "^2.11.6",
-    "eslint": "^3.2.0",
-    "eslint-config-standard": "^7.0.0",
-    "eslint-plugin-promise": "^3.0.0",
-    "eslint-plugin-standard": "^2.0.0",
-    "eslint-plugin-tape": "^1.1.0",
-    "is-admin": "^2.0.0",
-    "nyc": "^10.0.0",
-    "pkg-up": "^1.0.0",
-    "rimraf": "^2.3.2",
-    "run-waterfall": "^1.1.1",
-    "tape": "^4.0.0"
-  },
-  "engines": {
-    "node": ">= 4.0"
-  },
-  "scripts": {
-    "coveralls": "nyc report --reporter=text-lcov | coveralls",
-    "lint": "eslint .",
-    "pretest": "rimraf test/work",
-    "test": "npm run lint && nyc tape test"
+    "codecov": "^3.0.0",
+    "eslint": "^4.18.0",
+    "eslint-config-standard": "^11.0.0",
+    "eslint-plugin-ava": "^4.3.0",
+    "eslint-plugin-import": "^2.2.0",
+    "eslint-plugin-node": "^6.0.0",
+    "eslint-plugin-promise": "^3.5.0",
+    "eslint-plugin-standard": "^3.0.0",
+    "mz": "^2.6.0",
+    "nyc": "^11.0.0",
+    "pkg-up": "^2.0.0",
+    "sinon": "^5.0.7",
+    "tempy": "^0.2.1"
   },
   "directories": {
     "test": "test"
   },
-  "keywords": [],
+  "engines": {
+    "node": ">= 4.0"
+  },
   "eslintConfig": {
     "extends": [
-      "plugin:tape/recommended",
+      "eslint:recommended",
+      "plugin:ava/recommended",
+      "plugin:import/errors",
+      "plugin:import/warnings",
+      "plugin:promise/recommended",
       "standard"
     ],
     "parserOptions": {
       "sourceType": "script"
     },
     "plugins": [
-      "tape"
+      "ava",
+      "promise"
     ],
     "rules": {
-      "strict": [
-        "error"
-      ]
+      "indent": [
+        "error",
+        2,
+        {
+          "CallExpression": {
+            "arguments": "first"
+          },
+          "SwitchCase": 1
+        }
+      ],
+      "ava/prefer-async-await": 0,
+      "no-console": 0,
+      "strict": "error"
     }
   },
-  "gitHead": "1c2f3ea4c4f4c724262108e628c37f165ed6f0d9",
-  "_id": "electron-packager@8.6.0",
-  "_shasum": "23a4233cb573389c0f728b4e87ef74416d9933e9",
-  "_from": "electron-packager@>=8.5.1 <9.0.0",
-  "_npmVersion": "3.10.10",
-  "_nodeVersion": "6.10.0",
-  "_npmUser": {
-    "name": "malept",
-    "email": "nodejs.npm.nospam@lazymalevolence.com"
+  "homepage": "https://github.com/electron-userland/electron-packager",
+  "keywords": [],
+  "license": "BSD-2-Clause",
+  "main": "index.js",
+  "name": "electron-packager",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/electron-userland/electron-packager.git"
   },
-  "dist": {
-    "shasum": "23a4233cb573389c0f728b4e87ef74416d9933e9",
-    "tarball": "https://registry.npmjs.org/electron-packager/-/electron-packager-8.6.0.tgz"
+  "scripts": {
+    "codecov": "nyc report --reporter=text-lcov > coverage.lcov && codecov",
+    "lint": "eslint .",
+    "test": "npm run lint && nyc ava test/index.js"
   },
-  "maintainers": [
-    {
-      "name": "feross",
-      "email": "feross@feross.org"
-    },
-    {
-      "name": "jlord",
-      "email": "to.jlord@gmail.com"
-    },
-    {
-      "name": "jsdnxx",
-      "email": "jason@denizac.org"
-    },
-    {
-      "name": "kfranqueiro",
-      "email": "kenneth.franqueiro@gmail.com"
-    },
-    {
-      "name": "malept",
-      "email": "nodejs.npm.nospam@lazymalevolence.com"
-    },
-    {
-      "name": "maxogden",
-      "email": "max@maxogden.com"
-    },
-    {
-      "name": "sindresorhus",
-      "email": "sindresorhus@gmail.com"
-    },
-    {
-      "name": "stefanbuck",
-      "email": "web@broud.de"
-    },
-    {
-      "name": "zeke",
-      "email": "zeke@sikelianos.com"
-    }
-  ],
-  "_npmOperationalInternal": {
-    "host": "packages-18-east.internal.npmjs.com",
-    "tmp": "tmp/electron-packager-8.6.0.tgz_1489674044468_0.6513052964583039"
-  },
-  "_resolved": "https://registry.npmjs.org/electron-packager/-/electron-packager-8.6.0.tgz",
-  "readme": "ERROR: No README data found!"
+  "version": "12.2.0"
 }

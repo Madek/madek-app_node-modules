@@ -1,24 +1,18 @@
 'use strict'
 
+const App = require('./platform')
 const common = require('./common')
 const debug = require('debug')('electron-packager')
 const fs = require('fs-extra')
 const path = require('path')
 const plist = require('plist')
-const series = require('run-series')
-const sign = require('electron-osx-sign')
+const sign = require('electron-osx-sign').signAsync
 
-class MacApp {
-  constructor (opts, stagingPath) {
-    this.opts = opts
-    this.stagingPath = stagingPath
+class MacApp extends App {
+  constructor (opts, templatePath) {
+    super(opts, templatePath)
+
     this.appName = opts.name
-    this.operations = []
-    this.renamedAppPath = path.join(this.stagingPath, `${common.sanitizeAppName(this.appName)}.app`)
-    this.electronAppPath = path.join(this.stagingPath, 'Electron.app')
-    this.contentsPath = path.join(this.electronAppPath, 'Contents')
-    this.frameworksPath = path.join(this.contentsPath, 'Frameworks')
-    this.resourcesPath = path.join(this.contentsPath, 'Resources')
   }
 
   get appCategoryType () {
@@ -37,6 +31,10 @@ class MacApp {
     return this.opts.buildVersion
   }
 
+  get enableDarkMode () {
+    return this.opts.darwinDarkModeSupport
+  }
+
   get protocols () {
     return this.opts.protocols.map((protocol) => {
       return {
@@ -44,6 +42,58 @@ class MacApp {
         CFBundleURLSchemes: [].concat(protocol.schemes)
       }
     })
+  }
+
+  get dotAppName () {
+    return `${common.sanitizeAppName(this.appName)}.app`
+  }
+
+  get defaultBundleName () {
+    return `com.electron.${common.sanitizeAppName(this.appName).toLowerCase()}`
+  }
+
+  get originalResourcesDir () {
+    return path.join(this.contentsPath, 'Resources')
+  }
+
+  get resourcesDir () {
+    return path.join(this.dotAppName, 'Contents', 'Resources')
+  }
+
+  get electronBinaryDir () {
+    return path.join(this.contentsPath, 'MacOS')
+  }
+
+  get originalElectronName () {
+    return 'Electron'
+  }
+
+  get newElectronName () {
+    return this.appPlist.CFBundleExecutable
+  }
+
+  get renamedAppPath () {
+    return path.join(this.stagingPath, this.dotAppName)
+  }
+
+  get electronAppPath () {
+    return path.join(this.stagingPath, `${this.originalElectronName}.app`)
+  }
+
+  get contentsPath () {
+    return path.join(this.electronAppPath, 'Contents')
+  }
+
+  get frameworksPath () {
+    return path.join(this.contentsPath, 'Frameworks')
+  }
+
+  get loginItemsPath () {
+    return path.join(this.contentsPath, 'Library', 'LoginItems')
+  }
+
+  get loginHelperPath () {
+    return path.join(this.loginItemsPath, 'Electron Login Helper.app')
   }
 
   updatePlist (base, displayName, identifier, name) {
@@ -69,130 +119,167 @@ class MacApp {
     return this.updatePlist(base, `${this.appName} ${helperSuffix}`, identifier, name)
   }
 
-  extendAppPlist (props) {
-    let extendedAppPlist = props
-
-    if (typeof props === 'string') {
-      extendedAppPlist = plist.parse(fs.readFileSync(props).toString())
+  extendAppPlist (propsOrFilename) {
+    if (!propsOrFilename) {
+      return Promise.resolve()
     }
 
-    return Object.assign(this.appPlist, extendedAppPlist)
+    if (typeof propsOrFilename === 'string') {
+      return this.loadPlist(propsOrFilename)
+        .then(plist => Object.assign(this.appPlist, plist))
+    } else {
+      return Promise.resolve(Object.assign(this.appPlist, propsOrFilename))
+    }
   }
 
-  loadPlist (filename) {
-    return plist.parse(fs.readFileSync(filename).toString())
+  loadPlist (filename, propName) {
+    return fs.readFile(filename)
+      .then(buffer => plist.parse(buffer.toString()))
+      .then(plist => {
+        if (propName) this[propName] = plist
+        return plist
+      })
   }
 
   ehPlistFilename (helper) {
-    return path.join(this.frameworksPath, helper, 'Contents', 'Info.plist')
+    return this.helperPlistFilename(path.join(this.frameworksPath, helper))
+  }
+
+  helperPlistFilename (helperApp) {
+    return path.join(helperApp, 'Contents', 'Info.plist')
+  }
+
+  determinePlistFilesToUpdate () {
+    const appPlistFilename = path.join(this.contentsPath, 'Info.plist')
+
+    const plists = [
+      [appPlistFilename, 'appPlist'],
+      [this.ehPlistFilename('Electron Helper.app'), 'helperPlist']
+    ]
+
+    const possiblePlists = [
+      [this.ehPlistFilename('Electron Helper EH.app'), 'helperEHPlist'],
+      [this.ehPlistFilename('Electron Helper NP.app'), 'helperNPPlist'],
+      [this.helperPlistFilename(this.loginHelperPath), 'loginHelperPlist']
+    ]
+
+    return Promise.all(possiblePlists.map(item =>
+      fs.pathExists(item[0])
+        .then(exists => exists ? item : null)
+    )).then(optional => plists.concat(optional.filter(item => item)))
   }
 
   updatePlistFiles () {
-    let appPlistFilename = path.join(this.contentsPath, 'Info.plist')
-    let helperPlistFilename = this.ehPlistFilename('Electron Helper.app')
-    let helperEHPlistFilename = this.ehPlistFilename('Electron Helper EH.app')
-    let helperNPPlistFilename = this.ehPlistFilename('Electron Helper NP.app')
-    this.appPlist = this.loadPlist(appPlistFilename)
-    let helperPlist = this.loadPlist(helperPlistFilename)
-    let helperEHPlist = this.loadPlist(helperEHPlistFilename)
-    let helperNPPlist = this.loadPlist(helperNPPlistFilename)
+    let plists
 
-    let defaultBundleName = `com.electron.${common.sanitizeAppName(this.appName).toLowerCase()}`
-
-    let appBundleIdentifier = filterCFBundleIdentifier(this.opts.appBundleId || defaultBundleName)
+    const appBundleIdentifier = filterCFBundleIdentifier(this.opts.appBundleId || this.defaultBundleName)
     this.helperBundleIdentifier = filterCFBundleIdentifier(this.opts.helperBundleId || `${appBundleIdentifier}.helper`)
 
-    if (this.opts.extendInfo) {
-      this.appPlist = this.extendAppPlist(this.opts.extendInfo)
-    }
+    return this.determinePlistFilesToUpdate()
+      .then(plistsToUpdate => {
+        plists = plistsToUpdate
+        return Promise.all(plists.map(plistArgs => this.loadPlist.apply(this, plistArgs)))
+      }).then(() => this.extendAppPlist(this.opts.extendInfo))
+      .then(() => {
+        this.appPlist = this.updatePlist(this.appPlist, this.executableName, appBundleIdentifier, this.appName)
+        this.helperPlist = this.updateHelperPlist(this.helperPlist)
+        if (this.helperEHPlist) {
+          this.helperEHPlist = this.updateHelperPlist(this.helperEHPlist, 'EH')
+        }
+        if (this.helperNPPlist) {
+          this.helperNPPlist = this.updateHelperPlist(this.helperNPPlist, 'NP')
+        }
 
-    this.appPlist = this.updatePlist(this.appPlist, this.appName, appBundleIdentifier, this.appName)
-    helperPlist = this.updateHelperPlist(helperPlist)
-    helperEHPlist = this.updateHelperPlist(helperEHPlist, 'EH')
-    helperNPPlist = this.updateHelperPlist(helperNPPlist, 'NP')
+        if (this.loginHelperPlist) {
+          const loginHelperName = common.sanitizeAppName(`${this.appName} Login Helper`)
+          this.loginHelperPlist.CFBundleExecutable = loginHelperName
+          this.loginHelperPlist.CFBundleIdentifier = `${appBundleIdentifier}.loginhelper`
+          this.loginHelperPlist.CFBundleName = loginHelperName
+        }
 
-    if (this.appVersion) {
-      this.appPlist.CFBundleShortVersionString = this.appPlist.CFBundleVersion = '' + this.appVersion
-    }
+        if (this.appVersion) {
+          this.appPlist.CFBundleShortVersionString = this.appPlist.CFBundleVersion = '' + this.appVersion
+        }
 
-    if (this.buildVersion) {
-      this.appPlist.CFBundleVersion = '' + this.buildVersion
-    }
+        if (this.buildVersion) {
+          this.appPlist.CFBundleVersion = '' + this.buildVersion
+        }
 
-    if (this.opts.protocols && this.opts.protocols.length) {
-      this.appPlist.CFBundleURLTypes = this.protocols
-    }
+        if (this.opts.protocols && this.opts.protocols.length) {
+          this.appPlist.CFBundleURLTypes = this.protocols
+        }
 
-    if (this.appCategoryType) {
-      this.appPlist.LSApplicationCategoryType = this.appCategoryType
-    }
+        if (this.appCategoryType) {
+          this.appPlist.LSApplicationCategoryType = this.appCategoryType
+        }
 
-    if (this.appCopyright) {
-      this.appPlist.NSHumanReadableCopyright = this.appCopyright
-    }
+        if (this.appCopyright) {
+          this.appPlist.NSHumanReadableCopyright = this.appCopyright
+        }
 
-    fs.writeFileSync(appPlistFilename, plist.build(this.appPlist))
-    fs.writeFileSync(helperPlistFilename, plist.build(helperPlist))
-    fs.writeFileSync(helperEHPlistFilename, plist.build(helperEHPlist))
-    fs.writeFileSync(helperNPPlistFilename, plist.build(helperNPPlist))
+        if (this.enableDarkMode) {
+          this.appPlist.NSRequiresAquaSystemAppearance = false
+        }
+
+        return Promise.all(plists.map(plistArgs => {
+          const filename = plistArgs[0]
+          const varName = plistArgs[1]
+          return fs.writeFile(filename, plist.build(this[varName]))
+        }))
+      })
   }
 
-  moveHelpers (callback) {
-    series([' Helper', ' Helper EH', ' Helper NP'].map((suffix) => {
-      return (cb) => {
-        let executableBasePath = path.join(this.frameworksPath, `Electron${suffix}.app`, 'Contents', 'MacOS')
-
-        common.rename(executableBasePath, `Electron${suffix}`, `${common.sanitizeAppName(this.appName)}${suffix}`, (err) => {
-          if (err) return cb(err)
-          common.rename(this.frameworksPath, `Electron${suffix}.app`, `${common.sanitizeAppName(this.appName)}${suffix}.app`, cb)
-        })
-      }
-    }), (err) => {
-      callback(err)
-    })
+  moveHelpers () {
+    const helpers = [' Helper', ' Helper EH', ' Helper NP']
+    return Promise.all(helpers.map(suffix => this.moveHelper(this.frameworksPath, suffix)))
+      .then(() => fs.pathExists(this.loginItemsPath))
+      .then(exists => exists ? this.moveHelper(this.loginItemsPath, ' Login Helper') : null)
   }
 
-  enqueueCopyingIcon () {
-    this.operations.push((cb) => {
-      common.normalizeExt(this.opts.icon, '.icns', (err, icon) => {
-        if (err) {
-          // Ignore error if icon doesn't exist, in case it's only available for other OS
-          cb(null)
+  moveHelper (helperDirectory, suffix) {
+    const originalBasename = `Electron${suffix}`
+
+    return fs.pathExists(path.join(helperDirectory, `${originalBasename}.app`))
+      .then(exists => {
+        if (exists) {
+          return this.renameHelperAndExecutable(
+            helperDirectory,
+            originalBasename,
+            `${common.sanitizeAppName(this.appName)}${suffix}`
+          )
         } else {
-          debug(`Copying icon "${icon}" to app's Resources as "${this.appPlist.CFBundleIconFile}"`)
-          fs.copy(icon, path.join(this.resourcesPath, this.appPlist.CFBundleIconFile), cb)
+          return Promise.resolve()
         }
       })
-    })
   }
 
-  enqueueCopyingExtraFiles (extras) {
-    if (!Array.isArray(extras)) extras = [extras]
-    extras.forEach((filename) => {
-      this.operations.push((cb) => {
-        fs.copy(filename, path.join(this.resourcesPath, path.basename(filename)), cb)
+  renameHelperAndExecutable (helperDirectory, originalBasename, newBasename) {
+    const originalAppname = `${originalBasename}.app`
+    const executableBasePath = path.join(helperDirectory, originalAppname, 'Contents', 'MacOS')
+    return this.relativeRename(executableBasePath, originalBasename, newBasename)
+      .then(() => this.relativeRename(helperDirectory, originalAppname, `${newBasename}.app`))
+  }
+
+  copyIcon () {
+    if (!this.opts.icon) {
+      return Promise.resolve()
+    }
+
+    return this.normalizeIconExtension('.icns')
+      // Ignore error if icon doesn't exist, in case it's only available for other OS
+      .catch(Promise.resolve)
+      .then(icon => {
+        debug(`Copying icon "${icon}" to app's Resources as "${this.appPlist.CFBundleIconFile}"`)
+        return fs.copy(icon, path.join(this.originalResourcesDir, this.appPlist.CFBundleIconFile))
       })
-    })
   }
 
-  enqueueRenamingElectronBinary () {
-    this.operations.push((cb) => {
-      common.rename(path.join(this.contentsPath, 'MacOS'),
-                    'Electron',
-                    this.appPlist.CFBundleExecutable,
-                    cb)
-    })
+  renameAppAndHelpers () {
+    return this.moveHelpers()
+      .then(() => fs.rename(this.electronAppPath, this.renamedAppPath))
   }
 
-  enqueueRenamingAppAndHelpers () {
-    this.operations.push((cb) => {
-      this.moveHelpers(cb)
-    }, (cb) => {
-      fs.rename(this.electronAppPath, this.renamedAppPath, cb)
-    })
-  }
-
-  enqueueAppSigningIfSpecified () {
+  signAppIfSpecified () {
     let osxSignOpt = this.opts.osxSign
     let platform = this.opts.platform
     let version = this.opts.electronVersion
@@ -204,31 +291,33 @@ class MacApp {
     }
 
     if (osxSignOpt) {
-      this.operations.push((cb) => {
-        let signOpts = createSignOpts(osxSignOpt, platform, this.renamedAppPath, version, this.opts.quiet)
-        debug(`Running electron-osx-sign with the options ${JSON.stringify(signOpts)}`)
-        sign(signOpts, (err) => {
-          if (err) {
-            // Although not signed successfully, the application is packed.
-            common.warning('Code sign failed; please retry manually.', err)
-          }
-          cb()
-        })
-      })
+      const signOpts = createSignOpts(osxSignOpt, platform, this.renamedAppPath, version, this.opts.quiet)
+      debug(`Running electron-osx-sign with the options ${JSON.stringify(signOpts)}`)
+      return sign(signOpts)
+      // Although not signed successfully, the application is packed.
+        .catch(err => common.warning(`Code sign failed; please retry manually. ${err}`))
+    } else {
+      return Promise.resolve()
     }
   }
 
-  executeOperations (callback) {
-    series(this.operations, (err) => {
-      if (err) return callback(err)
-      common.moveApp(this.opts, this.stagingPath, callback)
-    })
+  create () {
+    return this.initialize()
+      .then(() => this.updatePlistFiles())
+      .then(() => this.copyIcon())
+      .then(() => this.renameElectron())
+      .then(() => this.renameAppAndHelpers())
+      .then(() => this.copyExtraResources())
+      .then(() => this.signAppIfSpecified())
+      .then(() => this.move())
   }
 }
 
-// Remove special characters and allow only alphanumeric (A-Z,a-z,0-9), hyphen (-), and period (.)
-// Apple documentation:
-// https://developer.apple.com/library/mac/documentation/General/Reference/InfoPlistKeyReference/Articles/CoreFoundationKeys.html#//apple_ref/doc/uid/20001431-102070
+/**
+ * Remove special characters and allow only alphanumeric (A-Z,a-z,0-9), hyphen (-), and period (.)
+ * Apple documentation:
+ * https://developer.apple.com/library/mac/documentation/General/Reference/InfoPlistKeyReference/Articles/CoreFoundationKeys.html#//apple_ref/doc/uid/20001431-102070
+ */
 function filterCFBundleIdentifier (identifier) {
   return identifier.replace(/ /g, '-').replace(/[^a-zA-Z0-9.-]/g, '')
 }
@@ -260,29 +349,7 @@ function createSignOpts (properties, platform, app, version, quiet) {
 }
 
 module.exports = {
-  createApp: function createApp (opts, templatePath, callback) {
-    let appRelativePath = path.join('Electron.app', 'Contents', 'Resources', 'app')
-    common.initializeApp(opts, templatePath, appRelativePath, function buildMacApp (err, stagingPath) {
-      if (err) return callback(err)
-
-      let appCreator = new MacApp(opts, stagingPath)
-      appCreator.updatePlistFiles()
-
-      if (opts.icon) {
-        appCreator.enqueueCopyingIcon()
-      }
-
-      if (opts.extraResource) {
-        appCreator.enqueueCopyingExtraFiles(opts.extraResource)
-      }
-
-      appCreator.enqueueRenamingElectronBinary()
-      appCreator.enqueueRenamingAppAndHelpers()
-      appCreator.enqueueAppSigningIfSpecified()
-
-      return appCreator.executeOperations(callback)
-    })
-  },
+  App: MacApp,
   createSignOpts: createSignOpts,
   filterCFBundleIdentifier: filterCFBundleIdentifier
 }
